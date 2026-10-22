@@ -10,6 +10,7 @@ from src.data.feature_engineering import (
     add_moving_averages,
     add_returns,
     add_rsi,
+    add_volume_change,
     engineer_features,
     get_engineered_feature_names,
 )
@@ -91,3 +92,11 @@ def test_engineer_features_no_lookahead_on_full_pipeline():
         out1.loc[:78, feature_cols].reset_index(drop=True),
         out2.loc[:78, feature_cols].reset_index(drop=True),
     )
+
+
+def test_volume_change_from_zero_volume_is_nan_not_inf():
+    df = _price_df(n=5)
+    df.loc[2, "volume"] = 0.0
+    out = add_volume_change(df)
+    assert not np.isinf(out["volume_change"]).any()
+    assert np.isnan(out.loc[3, "volume_change"])

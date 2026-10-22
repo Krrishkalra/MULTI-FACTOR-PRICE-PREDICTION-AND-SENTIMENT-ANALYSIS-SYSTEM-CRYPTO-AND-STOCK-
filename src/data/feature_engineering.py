@@ -108,7 +108,8 @@ def add_macd(df: pd.DataFrame, price_col: str = "close", fast: int = 12, slow: i
 def add_volume_change(df: pd.DataFrame, volume_col: str = "volume") -> pd.DataFrame:
     """Add the percentage change in traded volume vs the prior period."""
     df = df.copy()
-    df["volume_change"] = df[volume_col].pct_change()
+    # A change from zero volume is undefined, not infinite; NaN rows are dropped with the warm-up rows.
+    df["volume_change"] = df[volume_col].pct_change().replace([np.inf, -np.inf], np.nan)
     return df
 
 

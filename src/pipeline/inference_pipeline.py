@@ -30,6 +30,7 @@ from ..data.feature_engineering import engineer_features
 from ..data.loader import load_market_data_csv, load_market_data_from_records, load_news_data_from_records
 from ..schemas import MarketDataPoint, NewsItem, PredictionResult
 from ..sentiment.aggregator import SENTIMENT_FEATURE_COLUMNS
+from ..sentiment.sentiment_model import SentimentScorer
 from ..timeseries.persistence import load_model_bundle
 from ..timeseries.predict import CONFIDENCE_METHOD_DESCRIPTION, compute_confidence, predict_point, predict_with_mc_dropout
 
@@ -52,6 +53,8 @@ class InferencePipeline:
         )
         self.use_sentiment = self.metadata.get("use_sentiment", False)
         self.val_residual_std = float(self.metadata.get("val_residual_std", 0.0))
+        # Loaded lazily on first use, then reused so FinBERT is not reloaded per request.
+        self.scorer = SentimentScorer(self.config.sentiment) if self.use_sentiment else None
 
     def predict(
         self,
@@ -101,7 +104,9 @@ class InferencePipeline:
             if sentiment_data is None:
                 raise ValueError("This model was trained with sentiment features; sentiment_data is required")
             news_df = load_news_data_from_records(sentiment_data)
-            sentiment_features_df = build_sentiment_features(news_df, market_df["timestamp"], self.config.sentiment)
+            sentiment_features_df = build_sentiment_features(
+                news_df, market_df["timestamp"], self.config.sentiment, scorer=self.scorer
+            )
             full_df = merge_market_and_sentiment(market_df, sentiment_features_df)
         else:
             full_df = market_df
