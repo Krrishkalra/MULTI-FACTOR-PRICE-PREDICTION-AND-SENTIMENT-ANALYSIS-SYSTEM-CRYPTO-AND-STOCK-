@@ -6,3 +6,6 @@ data/processed/
 models/
 reports/
 *.ipynb_checkpoints/
+.venv/
+node_modules/
+frontend/dist/

@@ -245,12 +245,18 @@ def main() -> None:
     parser.add_argument("--run-name", type=str, default="default_run")
     parser.add_argument("--model-type", type=str, default="lstm", choices=["lstm", "transformer"])
     parser.add_argument("--epochs", type=int, default=None)
+    parser.add_argument("--asset", type=str, default=None, help="Asset label stored in the bundle config, e.g. BTC-USD")
+    parser.add_argument("--sentiment-window", type=str, default=None, help="Sentiment aggregation window, e.g. 24h")
     args = parser.parse_args()
 
     config = get_default_config()
     config.model.model_type = args.model_type
     if args.epochs is not None:
         config.model.epochs = args.epochs
+    if args.asset is not None:
+        config.data.asset = args.asset
+    if args.sentiment_window is not None:
+        config.sentiment.aggregation_window = args.sentiment_window
 
     results = run_training_pipeline(
         market_csv=args.market_csv,

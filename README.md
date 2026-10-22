@@ -378,3 +378,44 @@ the suite still runs meaningfully in constrained environments.
   outlier inflates its own reference standard deviation.
 - No live data ingestion, streaming, or real-time retraining is implemented — this is a
   local, batch-oriented development pipeline pending backend integration.
+
+## 17. Real Data, Backend and Dashboard
+
+**Scrape a real dataset** (hourly OHLCV from Yahoo Finance, or Binance for crypto, and
+headlines from Google News RSS queried week by week). Written to `data/raw/` (gitignored),
+so re-run this on a fresh clone. Use Binance for crypto: Yahoo's hourly crypto bars report
+zero volume for about half the hours.
+
+```powershell
+python scripts/scrape_data.py --symbol BTC-USD --query bitcoin --binance-pair BTCUSDT
+python scripts/scrape_data.py --symbol AAPL --query "Apple stock"
+```
+
+Google News only gives day-level times for some items (shown as 08:00 GMT); those are moved
+to the next midnight so a headline is never aligned with a bar before it was published.
+Each weekly query returns at most 100 headlines.
+
+**Train** one price-only and one price+sentiment model per asset. Headlines are sparse
+relative to hourly bars, so the sentiment window is widened to 24h:
+
+```powershell
+python -m src.pipeline.training_pipeline --asset BTC-USD --run-name BTC-USD_price_only --market-csv data/raw/BTC-USD_market.csv
+python -m src.pipeline.training_pipeline --asset BTC-USD --run-name BTC-USD_price_sentiment --market-csv data/raw/BTC-USD_market.csv --news-json data/raw/BTC-USD_news.json --use-sentiment --sentiment-window 24h
+```
+
+**Run the backend** (FastAPI, from the repo root) and **the dashboard** (React + Vite):
+
+```powershell
+uvicorn backend.main:app --port 8000
+cd frontend; npm install; npm run dev
+```
+
+Open http://localhost:5173. The dashboard lists every trained run under
+`models/price_prediction/`, charts the asset's recent bars, shows the latest headlines,
+predicts the next bar on demand, and compares the deep model against the naive and
+Random Forest baselines on the held-out test set.
+
+API: `GET /api/models`, `GET /api/market/{symbol}`, `GET /api/news/{symbol}`,
+`POST /api/predict` with `{"run": "<run name>"}` (optionally `market_data` and `news` lists
+in the `MarketDataPoint` / `NewsItem` shapes to predict on your own data instead of the
+scraped files).
